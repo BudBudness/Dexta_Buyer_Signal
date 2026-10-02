@@ -1,0 +1,27 @@
+name: Dexta Buyer Pipeline
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+jobs:
+  intelligence:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r engine/requirements.txt
+      - run: pytest -q engine/tests
+      - run: python engine/run_pipeline.py
+      - name: Commit generated intelligence artifact
+        run: |
+          git config user.name "dexta-intelligence[bot]"
+          git config user.email "dexta-intelligence[bot]@users.noreply.github.com"
+          git add data/qualified_prospects.jsonl
+          git diff --cached --quiet || git commit -m "chore: refresh qualified prospect intelligence"
+          git push
