@@ -1,0 +1,10 @@
+[
+  {
+    "source": "PUBLIC_SOURCE_EXAMPLE",
+    "source_type": "public",
+    "url": "https://example.com/buyer-requests",
+    "enabled": false,
+    "authorization_context": null,
+    "permission_context": "publicly_accessible_web_page"
+  }
+]
