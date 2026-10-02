@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from dexta.pipeline import process_jsonl
 
-INPUT = "data/sample_sources.jsonl"
+INPUT = "data/discovered_sources.jsonl"
 OUTPUT = "data/qualified_prospects.jsonl"
 
 results = process_jsonl(INPUT)
