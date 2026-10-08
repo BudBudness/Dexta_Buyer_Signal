@@ -1,60 +1,7 @@
-/* eslint-disable */
-/**
- * Generated data model types.
- *
- * THIS CODE IS AUTOMATICALLY GENERATED.
- *
- * To regenerate, run `npx convex dev`.
- * @module
- */
-
-import type {
-  DataModelFromSchemaDefinition,
-  DocumentByName,
-  TableNamesInDataModel,
-  SystemTableNames,
-} from "convex/server";
-import type { GenericId } from "convex/values";
-import schema from "../schema.js";
-
-/**
- * The names of all of your Convex tables.
- */
-export type TableNames = TableNamesInDataModel<DataModel>;
-
-/**
- * The type of a document stored in Convex.
- *
- * @typeParam TableName - A string literal type of the table name (like "users").
- */
-export type Doc<TableName extends TableNames> = DocumentByName<
-  DataModel,
-  TableName
->;
-
-/**
- * An identifier for a document in Convex.
- *
- * Convex documents are uniquely identified by their `Id`, which is accessible
- * on the `_id` field. To learn more, see [Document IDs](https://docs.convex.dev/using/document-ids).
- *
- * Documents can be loaded using `db.get(tableName, id)` in query and mutation functions.
- *
- * IDs are just strings at runtime, but this type can be used to distinguish them from other
- * strings when type checking.
- *
- * @typeParam TableName - A string literal type of the table name (like "users").
- */
-export type Id<TableName extends TableNames | SystemTableNames> =
-  GenericId<TableName>;
-
-/**
- * A type describing your Convex data model.
- *
- * This type includes information about what tables you have, the type of
- * documents stored in those tables, and the indexes defined on them.
- *
- * This type is used to parameterize methods like `queryGeneric` and
- * `mutationGeneric` to make them type-safe.
- */
-export type DataModel = DataModelFromSchemaDefinition<typeof schema>;
+{
+  "file": {
+    "path": "convex/_generated/dataModel.d.ts",
+    "content": "/* eslint-disable */\n/**\n * Generated data model types.\n *\n * THIS CODE IS AUTOMATICALLY GENERATED.\n *\n * To regenerate, run `npx convex dev`.\n * @module\n */\n\nimport type {\n  DataModelFromSchemaDefinition,\n  DocumentByName,\n  TableNamesInDataModel,\n  SystemTableNames,\n} from \"convex/server\";\nimport type { GenericId } from \"convex/values\";\nimport schema from \"../schema.js\";\n\n/**\n * The names of all of your Convex tables.\n */\nexport type TableNames = TableNamesInDataModel<DataModel>;\n\n/**\n * The type of a document stored in Convex.\n *\n * @typeParam TableName - A string literal type of the table name (like \"users\").\n */\nexport type Doc<TableName extends TableNames> = DocumentByName<\n  DataModel,\n  TableName\n>;\n\n/**\n * An identifier for a document in Convex.\n *\n * Convex documents are uniquely identified by their `Id`, which is accessible\n * on the `_id` field. To learn more, see [Document IDs](https://docs.convex.dev/using/document-ids).\n *\n * Documents can be loaded using `db.get(tableName, id)` in query and mutation functions.\n *\n * IDs are just strings at runtime, but this type can be used to distinguish them from other\n * strings when type checking.\n *\n * @typeParam TableName - A string literal type of the table name (like \"users\").\n */\nexport type Id<TableName extends TableNames | SystemTableNames> =\n  GenericId<TableName>;\n\n/**\n * A type describing your Convex data model.\n *\n * This type includes information about what tables you have, the type of\n * documents stored in those tables, and the indexes defined on them.\n *\n * This type is used to parameterize methods like `queryGeneric` and\n * `mutationGeneric` to make them type-safe.\n */\nexport type DataModel = DataModelFromSchemaDefinition<typeof schema>;\n",
+    "totalLines": 60
+  }
+}
