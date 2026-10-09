@@ -1,7 +1,143 @@
-{
-  "file": {
-    "path": "src/lib/google-auth-handoff.ts",
-    "content": "import { ConvexError } from \"convex/values\"\n\nconst HANDOFF_KEY = \"macalyGoogleHandoffVerifier\"\nconst POPUP_PROOF_PREFIX = \"macalyGooglePopupProof:\"\nconst POPUP_PROOF_TTL_MS = 10 * 60 * 1000\n\nexport type GoogleAuthHandoffMode = \"sign-in\" | \"link\"\n\ntype GoogleAuthHandoff = {\n  verifier: string\n  mode: GoogleAuthHandoffMode\n}\n\nfunction base64Url(bytes: Uint8Array): string {\n  let binary = \"\"\n  for (const byte of bytes) binary += String.fromCharCode(byte)\n  return btoa(binary)\n    .replaceAll(\"+\", \"-\")\n    .replaceAll(\"/\", \"_\")\n    .replaceAll(\"=\", \"\")\n}\n\nexport function createGoogleAuthVerifier(): string {\n  return base64Url(crypto.getRandomValues(new Uint8Array(32)))\n}\n\nexport async function createGoogleAuthChallenge(\n  verifier: string,\n): Promise<string> {\n  const digest = await crypto.subtle.digest(\n    \"SHA-256\",\n    new TextEncoder().encode(verifier),\n  )\n  return base64Url(new Uint8Array(digest))\n}\n\nexport async function createGoogleAuthHandoff(\n  mode: GoogleAuthHandoffMode = \"sign-in\",\n): Promise<string> {\n  const verifier = createGoogleAuthVerifier()\n  // Store before the first await. The initiating Preview iframe retains this\n  // verifier and redeems the popup's one-time result in its own auth context.\n  sessionStorage.setItem(HANDOFF_KEY, JSON.stringify({ verifier, mode }))\n  return createGoogleAuthChallenge(verifier)\n}\n\nexport function storeGoogleAuthPopupProof(\n  flowId: string,\n  verifier: string,\n): void {\n  localStorage.setItem(\n    `${POPUP_PROOF_PREFIX}${flowId}`,\n    JSON.stringify({ verifier, createdAt: Date.now() }),\n  )\n}\n\nexport function takeGoogleAuthPopupProof(flowId: string): string | null {\n  const key = `${POPUP_PROOF_PREFIX}${flowId}`\n  const stored = localStorage.getItem(key)\n  localStorage.removeItem(key)\n  if (!stored) return null\n  try {\n    const proof = JSON.parse(stored) as {\n      verifier?: unknown\n      createdAt?: unknown\n    }\n    if (\n      typeof proof.verifier !== \"string\" ||\n      typeof proof.createdAt !== \"number\" ||\n      Date.now() - proof.createdAt > POPUP_PROOF_TTL_MS\n    ) {\n      return null\n    }\n    return proof.verifier\n  } catch {\n    return null\n  }\n}\n\nexport function takeGoogleAuthHandoff(): GoogleAuthHandoff | null {\n  const stored = sessionStorage.getItem(HANDOFF_KEY)\n  sessionStorage.removeItem(HANDOFF_KEY)\n  if (!stored) return null\n  try {\n    const handoff = JSON.parse(stored) as Partial<GoogleAuthHandoff>\n    if (\n      typeof handoff.verifier !== \"string\" ||\n      (handoff.mode !== \"sign-in\" && handoff.mode !== \"link\")\n    ) {\n      return null\n    }\n    return { verifier: handoff.verifier, mode: handoff.mode }\n  } catch {\n    return null\n  }\n}\n\nexport function describeGoogleAuthError(\n  error: unknown,\n  mode: GoogleAuthHandoffMode,\n): string {\n  const code =\n    error instanceof ConvexError &&\n    typeof error.data === \"object\" &&\n    error.data !== null &&\n    \"code\" in error.data\n      ? error.data.code\n      : null\n\n  if (code === \"GOOGLE_ACCOUNT_LINKED_TO_ANOTHER_USER\") {\n    return \"This Google account is already linked to another account. Use a different Google account or sign in to the account where it is already linked.\"\n  }\n  if (code === \"USER_HAS_DIFFERENT_GOOGLE_ACCOUNT\") {\n    return \"This account is already linked to a different Google account. Unlink it before linking another one.\"\n  }\n  if (code === \"GOOGLE_LINK_REAUTH_REQUIRED\") {\n    return \"For security, sign out and sign back in with your existing method, then try linking Google again.\"\n  }\n  if (code === \"GOOGLE_LINK_TARGET_MISSING\") {\n    return \"The account to link no longer exists. Sign in again and try linking Google.\"\n  }\n\n  const message = error instanceof Error ? error.message : String(error)\n  if (message.includes(\"cancelled\") || message.includes(\"access_denied\")) {\n    return \"Google sign-in was cancelled.\"\n  }\n  if (message.includes(\"popup was blocked\")) {\n    return \"Google sign-in popup was blocked. Allow popups and try again.\"\n  }\n  if (message.includes(\"timed out\")) {\n    return \"Google sign-in timed out. Please try again.\"\n  }\n  if (\n    message.includes(\"invalid or expired\") ||\n    message.includes(\"handoff expired\")\n  ) {\n    return \"This sign-in link expired. Please try again.\"\n  }\n\n  return mode === \"link\"\n    ? \"Google could not be linked. Please try again.\"\n    : \"Google sign-in failed. Please try again.\"\n}\n",
-    "totalLines": 143
+import { ConvexError } from "convex/values"
+
+const HANDOFF_KEY = "macalyGoogleHandoffVerifier"
+const POPUP_PROOF_PREFIX = "macalyGooglePopupProof:"
+const POPUP_PROOF_TTL_MS = 10 * 60 * 1000
+
+export type GoogleAuthHandoffMode = "sign-in" | "link"
+
+type GoogleAuthHandoff = {
+  verifier: string
+  mode: GoogleAuthHandoffMode
+}
+
+function base64Url(bytes: Uint8Array): string {
+  let binary = ""
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "")
+}
+
+export function createGoogleAuthVerifier(): string {
+  return base64Url(crypto.getRandomValues(new Uint8Array(32)))
+}
+
+export async function createGoogleAuthChallenge(
+  verifier: string,
+): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(verifier),
+  )
+  return base64Url(new Uint8Array(digest))
+}
+
+export async function createGoogleAuthHandoff(
+  mode: GoogleAuthHandoffMode = "sign-in",
+): Promise<string> {
+  const verifier = createGoogleAuthVerifier()
+  // Store before the first await. The initiating Preview iframe retains this
+  // verifier and redeems the popup's one-time result in its own auth context.
+  sessionStorage.setItem(HANDOFF_KEY, JSON.stringify({ verifier, mode }))
+  return createGoogleAuthChallenge(verifier)
+}
+
+export function storeGoogleAuthPopupProof(
+  flowId: string,
+  verifier: string,
+): void {
+  localStorage.setItem(
+    `${POPUP_PROOF_PREFIX}${flowId}`,
+    JSON.stringify({ verifier, createdAt: Date.now() }),
+  )
+}
+
+export function takeGoogleAuthPopupProof(flowId: string): string | null {
+  const key = `${POPUP_PROOF_PREFIX}${flowId}`
+  const stored = localStorage.getItem(key)
+  localStorage.removeItem(key)
+  if (!stored) return null
+  try {
+    const proof = JSON.parse(stored) as {
+      verifier?: unknown
+      createdAt?: unknown
+    }
+    if (
+      typeof proof.verifier !== "string" ||
+      typeof proof.createdAt !== "number" ||
+      Date.now() - proof.createdAt > POPUP_PROOF_TTL_MS
+    ) {
+      return null
+    }
+    return proof.verifier
+  } catch {
+    return null
   }
+}
+
+export function takeGoogleAuthHandoff(): GoogleAuthHandoff | null {
+  const stored = sessionStorage.getItem(HANDOFF_KEY)
+  sessionStorage.removeItem(HANDOFF_KEY)
+  if (!stored) return null
+  try {
+    const handoff = JSON.parse(stored) as Partial<GoogleAuthHandoff>
+    if (
+      typeof handoff.verifier !== "string" ||
+      (handoff.mode !== "sign-in" && handoff.mode !== "link")
+    ) {
+      return null
+    }
+    return { verifier: handoff.verifier, mode: handoff.mode }
+  } catch {
+    return null
+  }
+}
+
+export function describeGoogleAuthError(
+  error: unknown,
+  mode: GoogleAuthHandoffMode,
+): string {
+  const code =
+    error instanceof ConvexError &&
+    typeof error.data === "object" &&
+    error.data !== null &&
+    "code" in error.data
+      ? error.data.code
+      : null
+
+  if (code === "GOOGLE_ACCOUNT_LINKED_TO_ANOTHER_USER") {
+    return "This Google account is already linked to another account. Use a different Google account or sign in to the account where it is already linked."
+  }
+  if (code === "USER_HAS_DIFFERENT_GOOGLE_ACCOUNT") {
+    return "This account is already linked to a different Google account. Unlink it before linking another one."
+  }
+  if (code === "GOOGLE_LINK_REAUTH_REQUIRED") {
+    return "For security, sign out and sign back in with your existing method, then try linking Google again."
+  }
+  if (code === "GOOGLE_LINK_TARGET_MISSING") {
+    return "The account to link no longer exists. Sign in again and try linking Google."
+  }
+
+  const message = error instanceof Error ? error.message : String(error)
+  if (message.includes("cancelled") || message.includes("access_denied")) {
+    return "Google sign-in was cancelled."
+  }
+  if (message.includes("popup was blocked")) {
+    return "Google sign-in popup was blocked. Allow popups and try again."
+  }
+  if (message.includes("timed out")) {
+    return "Google sign-in timed out. Please try again."
+  }
+  if (
+    message.includes("invalid or expired") ||
+    message.includes("handoff expired")
+  ) {
+    return "This sign-in link expired. Please try again."
+  }
+
+  return mode === "link"
+    ? "Google could not be linked. Please try again."
+    : "Google sign-in failed. Please try again."
 }

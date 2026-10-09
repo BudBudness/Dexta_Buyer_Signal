@@ -1,7 +1,51 @@
-{
-  "file": {
-    "path": "src/routes/auth/google/popup.tsx",
-    "content": "import { createFileRoute } from \"@tanstack/react-router\"\nimport { useMountEffect } from \"@/hooks/use-mount-effect\"\nimport { storeGoogleAuthPopupProof } from \"@/lib/google-auth-handoff\"\n\nexport const Route = createFileRoute(\"/auth/google/popup\")({\n  component: GooglePopupBootstrap,\n})\n\nfunction GooglePopupBootstrap() {\n  useMountEffect(() => {\n    const opener = window.opener\n    if (!opener) return\n\n    const origin = window.location.origin\n    const READY = \"macaly-google-popup-ready\"\n    const START = \"macaly-google-popup-start\"\n\n    const announce = () => opener.postMessage({ type: READY }, origin)\n    const interval = window.setInterval(announce, 250)\n\n    const handle = (event: MessageEvent) => {\n      if (event.origin !== origin || event.source !== opener || event.data?.type !== START) return\n      const { flowId, authorizationUrl, popupVerifier } = event.data ?? {}\n      if (\n        typeof flowId !== \"string\" ||\n        typeof authorizationUrl !== \"string\" ||\n        typeof popupVerifier !== \"string\"\n      ) return\n\n      const target = new URL(authorizationUrl)\n      if (target.protocol !== \"https:\") return\n\n      window.clearInterval(interval)\n      window.removeEventListener(\"message\", handle)\n      storeGoogleAuthPopupProof(flowId, popupVerifier)\n      window.opener = null\n      window.location.replace(target.toString())\n    }\n\n    window.addEventListener(\"message\", handle)\n    announce()\n    return () => {\n      window.clearInterval(interval)\n      window.removeEventListener(\"message\", handle)\n    }\n  })\n\n  return <div className=\"min-h-screen bg-black text-white grid place-items-center\">\n    <div className=\"text-xs font-black tracking-[.2em]\">OPENING GOOGLE…</div>\n  </div>\n}\n",
-    "totalLines": 51
-  }
+import { createFileRoute } from "@tanstack/react-router"
+import { useMountEffect } from "@/hooks/use-mount-effect"
+import { storeGoogleAuthPopupProof } from "@/lib/google-auth-handoff"
+
+export const Route = createFileRoute("/auth/google/popup")({
+  component: GooglePopupBootstrap,
+})
+
+function GooglePopupBootstrap() {
+  useMountEffect(() => {
+    const opener = window.opener
+    if (!opener) return
+
+    const origin = window.location.origin
+    const READY = "macaly-google-popup-ready"
+    const START = "macaly-google-popup-start"
+
+    const announce = () => opener.postMessage({ type: READY }, origin)
+    const interval = window.setInterval(announce, 250)
+
+    const handle = (event: MessageEvent) => {
+      if (event.origin !== origin || event.source !== opener || event.data?.type !== START) return
+      const { flowId, authorizationUrl, popupVerifier } = event.data ?? {}
+      if (
+        typeof flowId !== "string" ||
+        typeof authorizationUrl !== "string" ||
+        typeof popupVerifier !== "string"
+      ) return
+
+      const target = new URL(authorizationUrl)
+      if (target.protocol !== "https:") return
+
+      window.clearInterval(interval)
+      window.removeEventListener("message", handle)
+      storeGoogleAuthPopupProof(flowId, popupVerifier)
+      window.opener = null
+      window.location.replace(target.toString())
+    }
+
+    window.addEventListener("message", handle)
+    announce()
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener("message", handle)
+    }
+  })
+
+  return <div className="min-h-screen bg-black text-white grid place-items-center">
+    <div className="text-xs font-black tracking-[.2em]">OPENING GOOGLE…</div>
+  </div>
 }

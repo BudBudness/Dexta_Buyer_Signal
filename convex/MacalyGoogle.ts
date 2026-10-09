@@ -1,7 +1,54 @@
-{
-  "file": {
-    "path": "convex/MacalyGoogle.ts",
-    "content": "import { ConvexCredentials } from \"@convex-dev/auth/providers/ConvexCredentials\"\nimport type { ConvexCredentialsConfig } from \"@convex-dev/auth/server\"\nimport { ConvexError } from \"convex/values\"\n\nimport { internal } from \"./_generated/api\"\nimport { callMacalyJson } from \"./macaly\"\n\nfunction requiredString(value: unknown, field: string): string {\n  if (typeof value !== \"string\" || value.length === 0) {\n    throw new Error(`Google identity is missing ${field}`)\n  }\n  return value\n}\n\nexport const MacalyGoogle: ConvexCredentialsConfig = ConvexCredentials({\n  id: \"macaly-google\",\n  authorize: async (credentials, ctx) => {\n    const grant = requiredString(credentials.grant, \"grant\")\n    const handoffVerifier = requiredString(\n      credentials.handoffVerifier,\n      \"handoffVerifier\",\n    )\n    const linkToCurrentUser = credentials.linkToCurrentUser === true\n    const identity = await callMacalyJson(\n      \"/api/client-app/google-auth/redeem\",\n      { grant, handoffVerifier },\n    )\n    if (identity.emailVerified !== true) {\n      throw new Error(\"Google email is not verified\")\n    }\n\n    const currentUserId = linkToCurrentUser\n      ? await ctx.runQuery(internal.googleAuth.recentUserId, {})\n      : null\n    if (linkToCurrentUser && !currentUserId) {\n      throw new ConvexError({ code: \"GOOGLE_LINK_REAUTH_REQUIRED\" })\n    }\n\n    const userId = await ctx.runMutation(\n      internal.googleAuth.resolveGoogleUser,\n      {\n        providerAccountId: requiredString(\n          identity.providerAccountId,\n          \"providerAccountId\",\n        ),\n        email: requiredString(identity.email, \"email\"),\n        name: typeof identity.name === \"string\" ? identity.name : undefined,\n        image: typeof identity.image === \"string\" ? identity.image : undefined,\n        linkToUserId: currentUserId ?? undefined,\n      },\n    )\n    return { userId }\n  },\n})\n",
-    "totalLines": 54
+import { ConvexCredentials } from "@convex-dev/auth/providers/ConvexCredentials"
+import type { ConvexCredentialsConfig } from "@convex-dev/auth/server"
+import { ConvexError } from "convex/values"
+
+import { internal } from "./_generated/api"
+import { callMacalyJson } from "./macaly"
+
+function requiredString(value: unknown, field: string): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Google identity is missing ${field}`)
   }
+  return value
 }
+
+export const MacalyGoogle: ConvexCredentialsConfig = ConvexCredentials({
+  id: "macaly-google",
+  authorize: async (credentials, ctx) => {
+    const grant = requiredString(credentials.grant, "grant")
+    const handoffVerifier = requiredString(
+      credentials.handoffVerifier,
+      "handoffVerifier",
+    )
+    const linkToCurrentUser = credentials.linkToCurrentUser === true
+    const identity = await callMacalyJson(
+      "/api/client-app/google-auth/redeem",
+      { grant, handoffVerifier },
+    )
+    if (identity.emailVerified !== true) {
+      throw new Error("Google email is not verified")
+    }
+
+    const currentUserId = linkToCurrentUser
+      ? await ctx.runQuery(internal.googleAuth.recentUserId, {})
+      : null
+    if (linkToCurrentUser && !currentUserId) {
+      throw new ConvexError({ code: "GOOGLE_LINK_REAUTH_REQUIRED" })
+    }
+
+    const userId = await ctx.runMutation(
+      internal.googleAuth.resolveGoogleUser,
+      {
+        providerAccountId: requiredString(
+          identity.providerAccountId,
+          "providerAccountId",
+        ),
+        email: requiredString(identity.email, "email"),
+        name: typeof identity.name === "string" ? identity.name : undefined,
+        image: typeof identity.image === "string" ? identity.image : undefined,
+        linkToUserId: currentUserId ?? undefined,
+      },
+    )
+    return { userId }
+  },
+})

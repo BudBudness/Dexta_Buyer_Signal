@@ -1,7 +1,270 @@
-{
-  "file": {
-    "path": "convex/googleAuth.ts",
-    "content": "import {\n  getAuthSessionId,\n  getAuthUserId,\n  invalidateSessions,\n} from \"@convex-dev/auth/server\"\nimport { ConvexError, v } from \"convex/values\"\n\nimport { internal } from \"./_generated/api\"\nimport {\n  action,\n  internalMutation,\n  internalQuery,\n  query,\n} from \"./_generated/server\"\nimport { callMacalyJson } from \"./macaly\"\n\n// Keep this set aligned with the non-Google providers registered in auth.ts.\n// The generated app always starts with ResendOTP; add \"password\" only while\n// Password is registered there.\nconst enabledFallbackProviderIds = new Set([\"resend-otp\"])\n\nfunction accountCanRestoreAccess(account: {\n  provider: string\n  secret?: string\n  emailVerified?: string\n}) {\n  // The shipped fallback methods persist one of these credential markers only\n  // after the account can restore access. Placeholder or unrelated rows do not\n  // make unlinking safe.\n  if (!enabledFallbackProviderIds.has(account.provider)) return false\n  return Boolean(account.secret?.length || account.emailVerified?.length)\n}\n\nexport const createAuthorizationUrl = action({\n  args: {\n    appOrigin: v.string(),\n    handoffChallenge: v.string(),\n    popupChallenge: v.optional(v.string()),\n    flowMode: v.union(v.literal(\"redirect\"), v.literal(\"popup\")),\n  },\n  handler: async (_ctx, args) => {\n    const result = await callMacalyJson(\"/api/client-app/google-auth/start\", {\n      appOrigin: args.appOrigin,\n      returnPath: \"/auth/google/callback\",\n      handoffChallenge: args.handoffChallenge,\n      ...(args.popupChallenge ? { popupChallenge: args.popupChallenge } : {}),\n      flowMode: args.flowMode,\n    })\n    if (\n      typeof result.authorizationUrl !== \"string\" ||\n      typeof result.flowId !== \"string\"\n    ) {\n      throw new Error(\"The platform did not return a Google authorization URL\")\n    }\n    return {\n      authorizationUrl: result.authorizationUrl,\n      flowId: result.flowId,\n    }\n  },\n})\n\nexport const completeAuthorizationPopup = action({\n  args: {\n    flowId: v.string(),\n    grant: v.string(),\n    popupVerifier: v.string(),\n  },\n  handler: async (_ctx, args) => {\n    const result = await callMacalyJson(\n      \"/api/client-app/google-auth/complete\",\n      args,\n    )\n    if (result.completed !== true) {\n      throw new Error(\"The platform did not complete the Google popup\")\n    }\n    return { completed: true }\n  },\n})\n\nexport const getAuthorizationStatus = action({\n  args: { flowId: v.string() },\n  handler: async (_ctx, args) => {\n    const result = await callMacalyJson(\"/api/client-app/google-auth/status\", {\n      flowId: args.flowId,\n    })\n    if (result.status === \"pending\") return { status: \"pending\" as const }\n    if (result.status === \"complete\" && typeof result.grant === \"string\") {\n      return { status: \"complete\" as const, grant: result.grant }\n    }\n    if (result.status === \"error\" && typeof result.error === \"string\") {\n      return { status: \"error\" as const, error: result.error }\n    }\n    throw new Error(\"The platform returned an invalid Google authorization status\")\n  },\n})\n\nexport const recentUserId = internalQuery({\n  args: {},\n  handler: async (ctx) => {\n    const [userId, sessionId] = await Promise.all([\n      getAuthUserId(ctx),\n      getAuthSessionId(ctx),\n    ])\n    if (!userId || !sessionId) return null\n    const session = await ctx.db.get(sessionId)\n    if (\n      !session ||\n      session.userId !== userId ||\n      Date.now() - session._creationTime > 10 * 60 * 1000\n    ) {\n      return null\n    }\n    return userId\n  },\n})\n\nexport const resolveGoogleUser = internalMutation({\n  args: {\n    providerAccountId: v.string(),\n    email: v.string(),\n    name: v.optional(v.string()),\n    image: v.optional(v.string()),\n    linkToUserId: v.optional(v.id(\"users\")),\n  },\n  handler: async (ctx, args) => {\n    const existing = await ctx.db\n      .query(\"users\")\n      .withIndex(\"google_subject\", (q) =>\n        q.eq(\"googleSubject\", args.providerAccountId),\n      )\n      .unique()\n\n    if (args.linkToUserId) {\n      const target = await ctx.db.get(args.linkToUserId)\n      if (!target) {\n        throw new ConvexError({ code: \"GOOGLE_LINK_TARGET_MISSING\" })\n      }\n      if (existing && existing._id !== target._id) {\n        throw new ConvexError({\n          code: \"GOOGLE_ACCOUNT_LINKED_TO_ANOTHER_USER\",\n        })\n      }\n      if (\n        target.googleSubject &&\n        target.googleSubject !== args.providerAccountId\n      ) {\n        throw new ConvexError({\n          code: \"USER_HAS_DIFFERENT_GOOGLE_ACCOUNT\",\n        })\n      }\n      // Keep the canonical OTP/password profile unchanged. Linking is only an\n      // ownership assertion; it must never overwrite an existing email.\n      if (!target.googleSubject) {\n        await ctx.db.patch(target._id, {\n          googleSubject: args.providerAccountId,\n        })\n      }\n      return target._id\n    }\n\n    // The first Google sign-in owns the initial profile. Once a row exists,\n    // keep its canonical fields unchanged: the identity may have been linked\n    // explicitly from an OTP/password account.\n    if (existing) return existing._id\n\n    return await ctx.db.insert(\"users\", {\n      googleSubject: args.providerAccountId,\n      email: args.email,\n      emailVerificationTime: Date.now(),\n      ...(args.name ? { name: args.name } : {}),\n      ...(args.image ? { image: args.image } : {}),\n    })\n  },\n})\n\nexport const unlinkGoogle = action({\n  args: {},\n  handler: async (ctx): Promise<{ unlinked: boolean }> => {\n    const userId = await getAuthUserId(ctx)\n    if (!userId) throw new Error(\"Sign in before unlinking Google\")\n    const preparation = await ctx.runQuery(\n      internal.googleAuth.prepareGoogleUnlink,\n      { userId },\n    )\n    if (!preparation.shouldUnlink) return { unlinked: false }\n\n    // Revoke first: if revocation fails, Google remains linked and retryable.\n    // The internal mutation does not depend on the now-revoked session.\n    await invalidateSessions(ctx, { userId })\n    return await ctx.runMutation(internal.googleAuth.unlinkGoogleAccount, {\n      userId,\n    })\n  },\n})\n\nexport const prepareGoogleUnlink = internalQuery({\n  args: { userId: v.id(\"users\") },\n  handler: async (ctx, args) => {\n    const user = await ctx.db.get(args.userId)\n    if (!user?.googleSubject) return { shouldUnlink: false }\n\n    const fallbackAccounts = await ctx.db\n      .query(\"authAccounts\")\n      .withIndex(\"userIdAndProvider\", (q) => q.eq(\"userId\", args.userId))\n      .collect()\n    if (!fallbackAccounts.some(accountCanRestoreAccess)) {\n      throw new ConvexError({ code: \"LAST_SIGN_IN_METHOD\" })\n    }\n    return { shouldUnlink: true }\n  },\n})\n\nexport const unlinkGoogleAccount = internalMutation({\n  args: { userId: v.id(\"users\") },\n  handler: async (ctx, args) => {\n    const user = await ctx.db.get(args.userId)\n    if (!user?.googleSubject) return { unlinked: false }\n\n    const fallbackAccounts = await ctx.db\n      .query(\"authAccounts\")\n      .withIndex(\"userIdAndProvider\", (q) => q.eq(\"userId\", args.userId))\n      .collect()\n    if (!fallbackAccounts.some(accountCanRestoreAccess)) {\n      throw new ConvexError({ code: \"LAST_SIGN_IN_METHOD\" })\n    }\n    await ctx.db.patch(args.userId, { googleSubject: undefined })\n    return { unlinked: true }\n  },\n})\n\nexport const accountSecurity = query({\n  args: {},\n  handler: async (ctx) => {\n    const userId = await getAuthUserId(ctx)\n    if (!userId) return null\n    const user = await ctx.db.get(userId)\n    if (!user) return null\n    const fallbackAccounts = await ctx.db\n      .query(\"authAccounts\")\n      .withIndex(\"userIdAndProvider\", (q) => q.eq(\"userId\", userId))\n      .collect()\n    return {\n      googleLinked: Boolean(user.googleSubject),\n      canUnlinkGoogle: fallbackAccounts.some(accountCanRestoreAccess),\n    }\n  },\n})\n\nexport const revokeOtherSessions = action({\n  args: {},\n  handler: async (ctx) => {\n    const [userId, sessionId] = await Promise.all([\n      getAuthUserId(ctx),\n      getAuthSessionId(ctx),\n    ])\n    if (!userId || !sessionId) throw new Error(\"Sign in to manage sessions\")\n    await invalidateSessions(ctx, { userId, except: [sessionId] })\n    return { revoked: true }\n  },\n})\n\nexport const revokeAllSessions = action({\n  args: {},\n  handler: async (ctx) => {\n    const userId = await getAuthUserId(ctx)\n    if (!userId) throw new Error(\"Sign in to manage sessions\")\n    await invalidateSessions(ctx, { userId })\n    return { revoked: true }\n  },\n})\n",
-    "totalLines": 270
-  }
+import {
+  getAuthSessionId,
+  getAuthUserId,
+  invalidateSessions,
+} from "@convex-dev/auth/server"
+import { ConvexError, v } from "convex/values"
+
+import { internal } from "./_generated/api"
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  query,
+} from "./_generated/server"
+import { callMacalyJson } from "./macaly"
+
+// Keep this set aligned with the non-Google providers registered in auth.ts.
+// The generated app always starts with ResendOTP; add "password" only while
+// Password is registered there.
+const enabledFallbackProviderIds = new Set(["resend-otp"])
+
+function accountCanRestoreAccess(account: {
+  provider: string
+  secret?: string
+  emailVerified?: string
+}) {
+  // The shipped fallback methods persist one of these credential markers only
+  // after the account can restore access. Placeholder or unrelated rows do not
+  // make unlinking safe.
+  if (!enabledFallbackProviderIds.has(account.provider)) return false
+  return Boolean(account.secret?.length || account.emailVerified?.length)
 }
+
+export const createAuthorizationUrl = action({
+  args: {
+    appOrigin: v.string(),
+    handoffChallenge: v.string(),
+    popupChallenge: v.optional(v.string()),
+    flowMode: v.union(v.literal("redirect"), v.literal("popup")),
+  },
+  handler: async (_ctx, args) => {
+    const result = await callMacalyJson("/api/client-app/google-auth/start", {
+      appOrigin: args.appOrigin,
+      returnPath: "/auth/google/callback",
+      handoffChallenge: args.handoffChallenge,
+      ...(args.popupChallenge ? { popupChallenge: args.popupChallenge } : {}),
+      flowMode: args.flowMode,
+    })
+    if (
+      typeof result.authorizationUrl !== "string" ||
+      typeof result.flowId !== "string"
+    ) {
+      throw new Error("The platform did not return a Google authorization URL")
+    }
+    return {
+      authorizationUrl: result.authorizationUrl,
+      flowId: result.flowId,
+    }
+  },
+})
+
+export const completeAuthorizationPopup = action({
+  args: {
+    flowId: v.string(),
+    grant: v.string(),
+    popupVerifier: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const result = await callMacalyJson(
+      "/api/client-app/google-auth/complete",
+      args,
+    )
+    if (result.completed !== true) {
+      throw new Error("The platform did not complete the Google popup")
+    }
+    return { completed: true }
+  },
+})
+
+export const getAuthorizationStatus = action({
+  args: { flowId: v.string() },
+  handler: async (_ctx, args) => {
+    const result = await callMacalyJson("/api/client-app/google-auth/status", {
+      flowId: args.flowId,
+    })
+    if (result.status === "pending") return { status: "pending" as const }
+    if (result.status === "complete" && typeof result.grant === "string") {
+      return { status: "complete" as const, grant: result.grant }
+    }
+    if (result.status === "error" && typeof result.error === "string") {
+      return { status: "error" as const, error: result.error }
+    }
+    throw new Error("The platform returned an invalid Google authorization status")
+  },
+})
+
+export const recentUserId = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const [userId, sessionId] = await Promise.all([
+      getAuthUserId(ctx),
+      getAuthSessionId(ctx),
+    ])
+    if (!userId || !sessionId) return null
+    const session = await ctx.db.get(sessionId)
+    if (
+      !session ||
+      session.userId !== userId ||
+      Date.now() - session._creationTime > 10 * 60 * 1000
+    ) {
+      return null
+    }
+    return userId
+  },
+})
+
+export const resolveGoogleUser = internalMutation({
+  args: {
+    providerAccountId: v.string(),
+    email: v.string(),
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    linkToUserId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("google_subject", (q) =>
+        q.eq("googleSubject", args.providerAccountId),
+      )
+      .unique()
+
+    if (args.linkToUserId) {
+      const target = await ctx.db.get(args.linkToUserId)
+      if (!target) {
+        throw new ConvexError({ code: "GOOGLE_LINK_TARGET_MISSING" })
+      }
+      if (existing && existing._id !== target._id) {
+        throw new ConvexError({
+          code: "GOOGLE_ACCOUNT_LINKED_TO_ANOTHER_USER",
+        })
+      }
+      if (
+        target.googleSubject &&
+        target.googleSubject !== args.providerAccountId
+      ) {
+        throw new ConvexError({
+          code: "USER_HAS_DIFFERENT_GOOGLE_ACCOUNT",
+        })
+      }
+      // Keep the canonical OTP/password profile unchanged. Linking is only an
+      // ownership assertion; it must never overwrite an existing email.
+      if (!target.googleSubject) {
+        await ctx.db.patch(target._id, {
+          googleSubject: args.providerAccountId,
+        })
+      }
+      return target._id
+    }
+
+    // The first Google sign-in owns the initial profile. Once a row exists,
+    // keep its canonical fields unchanged: the identity may have been linked
+    // explicitly from an OTP/password account.
+    if (existing) return existing._id
+
+    return await ctx.db.insert("users", {
+      googleSubject: args.providerAccountId,
+      email: args.email,
+      emailVerificationTime: Date.now(),
+      ...(args.name ? { name: args.name } : {}),
+      ...(args.image ? { image: args.image } : {}),
+    })
+  },
+})
+
+export const unlinkGoogle = action({
+  args: {},
+  handler: async (ctx): Promise<{ unlinked: boolean }> => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error("Sign in before unlinking Google")
+    const preparation = await ctx.runQuery(
+      internal.googleAuth.prepareGoogleUnlink,
+      { userId },
+    )
+    if (!preparation.shouldUnlink) return { unlinked: false }
+
+    // Revoke first: if revocation fails, Google remains linked and retryable.
+    // The internal mutation does not depend on the now-revoked session.
+    await invalidateSessions(ctx, { userId })
+    return await ctx.runMutation(internal.googleAuth.unlinkGoogleAccount, {
+      userId,
+    })
+  },
+})
+
+export const prepareGoogleUnlink = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId)
+    if (!user?.googleSubject) return { shouldUnlink: false }
+
+    const fallbackAccounts = await ctx.db
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", args.userId))
+      .collect()
+    if (!fallbackAccounts.some(accountCanRestoreAccess)) {
+      throw new ConvexError({ code: "LAST_SIGN_IN_METHOD" })
+    }
+    return { shouldUnlink: true }
+  },
+})
+
+export const unlinkGoogleAccount = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId)
+    if (!user?.googleSubject) return { unlinked: false }
+
+    const fallbackAccounts = await ctx.db
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", args.userId))
+      .collect()
+    if (!fallbackAccounts.some(accountCanRestoreAccess)) {
+      throw new ConvexError({ code: "LAST_SIGN_IN_METHOD" })
+    }
+    await ctx.db.patch(args.userId, { googleSubject: undefined })
+    return { unlinked: true }
+  },
+})
+
+export const accountSecurity = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return null
+    const user = await ctx.db.get(userId)
+    if (!user) return null
+    const fallbackAccounts = await ctx.db
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
+      .collect()
+    return {
+      googleLinked: Boolean(user.googleSubject),
+      canUnlinkGoogle: fallbackAccounts.some(accountCanRestoreAccess),
+    }
+  },
+})
+
+export const revokeOtherSessions = action({
+  args: {},
+  handler: async (ctx) => {
+    const [userId, sessionId] = await Promise.all([
+      getAuthUserId(ctx),
+      getAuthSessionId(ctx),
+    ])
+    if (!userId || !sessionId) throw new Error("Sign in to manage sessions")
+    await invalidateSessions(ctx, { userId, except: [sessionId] })
+    return { revoked: true }
+  },
+})
+
+export const revokeAllSessions = action({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error("Sign in to manage sessions")
+    await invalidateSessions(ctx, { userId })
+    return { revoked: true }
+  },
+})
