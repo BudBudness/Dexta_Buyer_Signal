@@ -23,7 +23,7 @@ def classify(text: str) -> Signal:
     sell = sum(bool(re.search(p,t)) for p in SELL_PATTERNS)
     reasons=[]
     score=0
-    if buy: score += min(55, buy*22); reasons.append("explicit buyer language")
+    if buy: score += min(55, buy*45); reasons.append("explicit buyer language")
     if re.search(r"\b(?:budget|below|under|within|\d+\s*m(?:illion)?\b)",t): score += 15; reasons.append("budget signal")
     if re.search(r"\b(?:import|from japan|source)\b",t): score += 12; reasons.append("import/source signal")
     if re.search(r"\b(?:today|this month|urgent|asap|immediately)\b",t): score += 10; reasons.append("urgency signal")
