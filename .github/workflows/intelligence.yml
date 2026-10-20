@@ -8,6 +8,8 @@ on:
 jobs:
   validate-engine:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/engine
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
