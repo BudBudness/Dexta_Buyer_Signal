@@ -1,6 +1,9 @@
 name: Dexta Intelligence
 
 on:
+  pull_request:
+  push:
+    branches: [main]
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
