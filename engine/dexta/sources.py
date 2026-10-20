@@ -20,10 +20,10 @@ class SourceConfig:
 
 
 def _html_to_text(html: str) -> str:
-    html = re.sub(r"<script\\b[^>]*>.*?</script>", " ", html, flags=re.I | re.S)
-    html = re.sub(r"<style\\b[^>]*>.*?</style>", " ", html, flags=re.I | re.S)
+    html = re.sub(r"<script\b[^>]*>.*?</script\s*>", " ", html, flags=re.I | re.S)
+    html = re.sub(r"<style\b[^>]*>.*?</style\s*>", " ", html, flags=re.I | re.S)
     text = re.sub(r"<[^>]+>", " ", html)
-    return re.sub(r"\\s+", " ", unescape(text)).strip()
+    return re.sub(r"\s+", " ", unescape(text)).strip()
 
 
 def fetch_public_source(config: SourceConfig, timeout: int = 20, max_bytes: int = 2_000_000) -> SourceRecord:
