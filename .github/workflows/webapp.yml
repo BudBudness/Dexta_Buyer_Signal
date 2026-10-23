@@ -36,6 +36,8 @@ jobs:
           cache-dependency-path: webapp/package-lock.json
       - name: Install locked dependencies
         run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
       - name: Run web application tests
         run: npm test
       - name: Build production bundle
