@@ -21,13 +21,23 @@ export const bootstrap = mutation({
   returns: v.object({ role: v.string(), name: v.string() }),
   handler: async (ctx, args) => {
     const email = await identityEmail(ctx)
+    const configuredOwnerEmail = process.env.DEXTA_OWNER_EMAIL?.toLowerCase().trim()
+    if (!configuredOwnerEmail || email !== configuredOwnerEmail) {
+      throw new Error("This account is not authorized for Dexta owner bootstrap")
+    }
+
     const existing = await ctx.db.query("staff").collect()
-    const mine = existing.find(x => x.email === email)
+    const mine = existing.find(x => x.email.toLowerCase().trim() === email)
     if (mine) {
-      if (!mine.active) throw new Error("This Moses account is inactive")
+      if (!mine.active || mine.role !== "owner") {
+        throw new Error("This account is not authorized for Dexta operations")
+      }
       return { role: mine.role, name: mine.name }
     }
-    if (existing.length > 0) throw new Error("This account is not authorized for Dexta operations")
+    if (existing.length > 0) {
+      throw new Error("This account is not authorized for Dexta operations")
+    }
+
     const name = args.name?.trim() || "Moses"
     await ctx.db.insert("staff", { email, name, role: "owner", active: true })
     return { role: "owner", name }
@@ -41,7 +51,7 @@ export const me = query({
     const identity = await ctx.auth.getUserIdentity()
     if (!identity?.email) return null
     const email = identity.email.toLowerCase().trim()
-    return (await ctx.db.query("staff").collect()).find(x => x.email === email) ?? null
+    return (await ctx.db.query("staff").collect()).find(x => x.email.toLowerCase().trim() === email) ?? null
   },
 })
 
@@ -52,7 +62,7 @@ export const assertOwner = query({
     const identity = await ctx.auth.getUserIdentity()
     if (!identity?.email) return false
     const email = identity.email.toLowerCase().trim()
-    const staff = (await ctx.db.query("staff").collect()).find(x => x.email === email)
+    const staff = (await ctx.db.query("staff").collect()).find(x => x.email.toLowerCase().trim() === email)
     return Boolean(staff?.active && staff.role === "owner")
   },
 })
