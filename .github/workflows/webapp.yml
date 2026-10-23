@@ -34,10 +34,10 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: webapp/package-lock.json
+      - name: Refresh lockfile for approved dependency floors
+        run: npm install --package-lock-only --ignore-scripts
       - name: Install locked dependencies
         run: npm ci
-      - name: Refresh the lockfile without running install scripts
-        run: npm install --package-lock-only --ignore-scripts
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
       - name: Run web application tests
