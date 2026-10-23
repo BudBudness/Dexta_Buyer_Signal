@@ -36,8 +36,8 @@ jobs:
           cache-dependency-path: webapp/package-lock.json
       - name: Install locked dependencies
         run: npm ci
-      - name: Apply non-breaking advisory fixes
-        run: npm audit fix
+      - name: Refresh the lockfile without running install scripts
+        run: npm install --package-lock-only --ignore-scripts
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
       - name: Run web application tests
