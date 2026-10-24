@@ -23,20 +23,11 @@ function MosesLogin() {
           <div className="text-[9px] tracking-[.25em] text-white/45">PRIVATE OPERATIONS</div>
         </div>
       </div>
-
-      <div className="mt-10 text-[10px] font-black tracking-[.25em] text-red-500">MOSES ACCESS</div>
+      <div className="mt-10 text-[10px] font-black tracking-[.25em] text-red-500">SECURE SIGN-IN</div>
       <h1 className="mt-2 text-3xl font-black">Dexta Command Center</h1>
-      <p className="mt-2 text-sm leading-6 text-white/50">
-        Sign in with the Google account authorized for Dexta operations.
-      </p>
-
-      <div className="mt-7">
-        <GoogleAuthButton />
-      </div>
-
-      <div className="mt-7 border-t border-white/10 pt-5 text-[10px] leading-5 text-white/35">
-        Google handles authentication. Dexta controls authorization. The first authorized Google account becomes the owner; additional accounts require explicit authorization.
-      </div>
+      <p className="mt-2 text-sm leading-6 text-white/50">Sign in with the Google account approved for Dexta operations.</p>
+      <div className="mt-7"><GoogleAuthButton /></div>
+      <div className="mt-7 border-t border-white/10 pt-5 text-[10px] leading-5 text-white/35">Authentication verifies your identity; Dexta separately checks your access. Owner access must be securely initialized by the deployment administrator. The first person to sign in does not automatically become owner.</div>
     </div>
   </div>
 }
