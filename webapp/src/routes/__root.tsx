@@ -1,5 +1,4 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-import { MacalyBridge } from '@macaly/bridge'
 import AppConvexProvider from '@/components/convex-client-provider'
 import '../styles.css'
 import siteMetadata from '../metadata.json'
@@ -23,12 +22,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head><HeadContent /></head>
-      <MacalyBridge>
-        <body>
-          <AppConvexProvider>{children}</AppConvexProvider>
-          <Scripts />
-        </body>
-      </MacalyBridge>
+      <body>
+        <AppConvexProvider>{children}</AppConvexProvider>
+        <Scripts />
+      </body>
     </html>
   )
 }
