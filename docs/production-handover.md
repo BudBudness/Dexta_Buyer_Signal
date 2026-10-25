@@ -32,7 +32,7 @@ The following values must be configured in the indicated service. Never commit s
 - `AUTH_GOOGLE_SECRET`: Google OAuth client secret.
 - `DEXTA_OWNER_EMAIL`: exact verified Google account email authorized for the one-time owner bootstrap.
 
-The Google OAuth client must include the callback URL required by the Convex Auth configuration for the production Convex deployment. The current tools available for this release do not provide access to inspect or change the Convex environment variables, so their live presence and correctness are not yet verified.
+The Google OAuth client must include the callback URL required by the Convex Auth configuration for the production Convex deployment. Before release, confirm in the Convex dashboard that these values are configured for the production deployment and match the Google OAuth client settings.
 
 ## Secure owner onboarding
 
