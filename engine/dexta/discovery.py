@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from pathlib import Path
+
 from .models import SourceRecord
 from .sources import SourceConfig, fetch_public_source
 
@@ -25,7 +26,9 @@ def discover(registry_path: str = "data/sources.json") -> list[SourceRecord]:
 
 
 def write_source_records(records: list[SourceRecord], path: str = "data/discovered_sources.jsonl") -> None:
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
+    """Write one valid JSON object per line (JSONL)."""
+    output = Path(path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", encoding="utf-8", newline="\n") as f:
         for record in records:
-            f.write(json.dumps(asdict(record), ensure_ascii=False) + "\\n")
+            f.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
