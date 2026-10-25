@@ -19,7 +19,7 @@ function App(){
  const bootstrap=useConvexMutation(api.staff.bootstrap)
  const me=useConvexQuery(api.staff.me,{})
  const [accessError,setAccessError]=useState("")
- useEffect(()=>{ if(me===null) void bootstrap({name:"Moses"}).catch(e=>setAccessError(e instanceof Error?e.message:"Access denied")) },[me,bootstrap])
+ useEffect(()=>{ if(me===null) void bootstrap({}).catch(e=>setAccessError(e instanceof Error?e.message:"Access denied")) },[me,bootstrap])
  if(accessError) return <div className="min-h-screen bg-black text-white grid place-items-center p-6"><div className="max-w-lg border border-red-700/40 bg-zinc-950 p-8"><div className="text-[10px] font-black tracking-[.25em] text-red-500">ACCESS DENIED</div><h1 className="mt-2 text-2xl font-black">This account is not authorized for Dexta operations.</h1><p className="mt-3 text-sm text-white/50">{accessError}</p></div></div>
  const [workspace,setWorkspace]=useState<"intelligence"|"sources"|"pipeline"|"analytics"|"customers"|"sourcing"|"sales"|"documents"|"automation"|"settings">("intelligence")
  const [filter,setFilter]=useState("all"),[query,setQuery]=useState(""),[selected,setSelected]=useState<string|null>(null),[running,setRunning]=useState(false),[msg,setMsg]=useState("")
