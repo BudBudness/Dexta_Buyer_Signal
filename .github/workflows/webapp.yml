@@ -5,11 +5,13 @@ on:
     paths:
       - "webapp/**"
       - ".github/workflows/webapp.yml"
+      - "docs/production-handover.md"
   push:
     branches: [main]
     paths:
       - "webapp/**"
       - ".github/workflows/webapp.yml"
+      - "docs/production-handover.md"
   workflow_dispatch:
 
 permissions:
