@@ -4,28 +4,34 @@
 
 - Current recovery deployment: https://dexta-buyer-signal-c1wux1u2e-bud-a1-os.vercel.app/
 - Repository: https://github.com/BudBudness/Dexta_Buyer_Signal
-- Recovery pull request: https://github.com/BudBudness/Dexta_Buyer_Signal/pull/2
+- Release pull request: https://github.com/BudBudness/Dexta_Buyer_Signal/pull/2
 
 ## Verified so far
 
-The Vercel deployment reached READY and its homepage returned HTTP 200. An earlier Linux workflow completed dependency installation, production dependency audit, application tests and production build: https://github.com/BudBudness/Dexta_Buyer_Signal/actions/runs/40029784532.
+The current Vercel deployment previously reached READY and its homepage returned HTTP 200. An earlier Linux workflow completed dependency installation, production dependency audit, application tests and production build: https://github.com/BudBudness/Dexta_Buyer_Signal/actions/runs/40029784532.
 
-These checks do not prove live authentication, live Convex connectivity, or persisted business operations. Those remain unverified.
+The web-app CI run for the current code revision is in progress or must be checked at https://github.com/BudBudness/Dexta_Buyer_Signal/actions. A successful homepage response does not prove live authentication, backend access or persisted business operations.
 
 ## Architecture and required configuration
 
-The web frontend is hosted on Vercel and the data/auth backend runs on Convex. Frontend environment variables belong in Vercel. Backend variables belong in the Convex deployment. Never put private backend credentials in client-exposed variables or source control.
+The frontend is hosted on Vercel and the application backend runs on Convex. Authentication uses native Convex Auth Google OAuth; it no longer relies on a platform OAuth handoff.
 
-- VITE_CONVEX_URL: the production Convex deployment URL, configured in Vercel.
-- CONVEX_SITE_URL: the matching Convex auth/site URL, configured in Convex.
-- DEXTA_OWNER_EMAIL: the exact verified email of the owner account, configured in Convex.
+Configure these values in the correct service, never in source control:
 
-Owner bootstrap deliberately fails closed unless DEXTA_OWNER_EMAIL is configured and matches the authenticated email. This is intentional security behavior. Do not replace it with unrestricted first-user ownership.
+- `VITE_CONVEX_URL`: production Convex deployment URL, configured in Vercel.
+- `CONVEX_SITE_URL`: the Convex Auth site URL for the production deployment, configured in Convex.
+- `AUTH_GOOGLE_ID`: Google OAuth client ID, configured in Convex.
+- `AUTH_GOOGLE_SECRET`: Google OAuth client secret, configured in Convex.
+- `DEXTA_OWNER_EMAIL`: exact verified email authorized for one-time owner bootstrap, configured in Convex.
+
+The Google OAuth client must allow the production Convex Auth callback URL shown in the Convex Auth setup instructions for this deployment. Do not put the Google client secret in Vercel's client-exposed environment variables.
+
+Owner bootstrap deliberately fails closed unless `DEXTA_OWNER_EMAIL` is configured and matches the authenticated email. Do not enable unrestricted first-user ownership.
 
 ## Owner onboarding
 
-1. The Dexta owner chooses the Google account they will use and confirms the verified email during handover.
-2. The deployment administrator sets DEXTA_OWNER_EMAIL in the production Convex deployment and verifies the frontend/backend URLs.
+1. The Dexta owner chooses their Google account and confirms the verified email during handover.
+2. Configure `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `CONVEX_SITE_URL`, and `DEXTA_OWNER_EMAIL` in the production Convex deployment. Confirm `VITE_CONVEX_URL` in Vercel.
 3. Deploy the Convex functions and open the application.
 4. The owner signs in. Bootstrap is allowed only if the configured email matches and the staff table is empty.
 5. Verify the owner record, protected queries and owner-only actions.
@@ -34,9 +40,9 @@ Owner bootstrap deliberately fails closed unless DEXTA_OWNER_EMAIL is configured
 
 ## Release blockers
 
-- The latest pull-request checks previously reported action_required. A new passing run is required.
-- Live Convex authorization and end-to-end persistence are not verified.
-- Recovery PR #2 remains open and is not merged into main.
+- The current revision needs a passing web-app CI run after the authentication change.
+- Live Convex OAuth configuration, owner authorization and end-to-end persistence have not yet been verified.
+- Release pull request #2 remains open and is not merged into `main`.
 
 ## Safe release rule
 
