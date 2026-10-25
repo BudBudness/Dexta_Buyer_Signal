@@ -1,7 +1,7 @@
 import { v } from "convex/values"
 import { action } from "./_generated/server"
 import { internal } from "./_generated/api"
-import { callMacalyJson } from "./macaly"
+import { callPublicSearch } from "./webSearch"
 import "./authz"
 
 const MAKES=["Toyota","Honda","Mazda","Suzuki","Subaru","Nissan","Mitsubishi","Hyundai","Mercedes","BMW","Volkswagen","Ford","Isuzu","Lexus"]
@@ -60,7 +60,7 @@ export const discover=action({
   const queries=[base,...SOURCES[0].templates]
   let searched=0,candidates=0,created=0,updated=0
   for(const query of queries){
-   const data=await callMacalyJson("/api/client-app/internet-search",{query});searched++
+   const data=await callPublicSearch(query);searched++
    const rows=Array.isArray(data.search_results)?data.search_results:[]
    for(const row of rows){
     if(!row||typeof row!=="object")continue
