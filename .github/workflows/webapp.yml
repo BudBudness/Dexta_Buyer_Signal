@@ -1,0 +1,55 @@
+name: Dexta Web App Verification
+
+on:
+  pull_request:
+    paths:
+      - "webapp/**"
+      - ".github/workflows/webapp.yml"
+      - "docs/production-handover.md"
+  push:
+    branches: [main]
+    paths:
+      - "webapp/**"
+      - ".github/workflows/webapp.yml"
+      - "docs/production-handover.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dexta-webapp-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  webapp:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webapp
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Run web application tests
+        run: npm test
+      - name: Build production bundle
+        run: npm run build
+      - name: Export verified dependency manifests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dexta-verified-dependency-manifests
+          path: |
+            webapp/package.json
+            webapp/package-lock.json
+          if-no-files-found: error
