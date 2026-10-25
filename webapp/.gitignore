@@ -41,8 +41,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# macaly internal files
-.macaly/skills
 .sandbox
 .profile
 .bashrc
