@@ -81,3 +81,58 @@
 * { box-sizing: border-box; }
 body { margin: 0; overflow-x: hidden; -webkit-font-smoothing: antialiased; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 @layer base { * { @apply border-border outline-ring/50; } body { background: hsl(var(--background)); color: hsl(var(--foreground)); } }
+
+
+/* Dexta Autohaus premium motion system */
+.dexta-site { --dexta-red: hsl(var(--destructive)); }
+.dexta-site a, .dexta-site button { -webkit-tap-highlight-color: transparent; }
+.hero-scene { perspective: 1200px; }
+.hero-image {
+  background-image: url("https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=2200&q=90");
+  background-position: center 58%;
+  background-size: cover;
+  opacity: .68;
+  transform: scale(1.035);
+  animation: dexta-hero-drift 18s ease-in-out infinite alternate;
+}
+.hero-shade { background: linear-gradient(90deg, hsl(0 0% 0% / .96) 0%, hsl(0 0% 0% / .82) 42%, hsl(0 0% 0% / .28) 100%), linear-gradient(0deg, hsl(0 0% 0% / .7), transparent 45%); }
+.hero-grid {
+  opacity: .16;
+  background-image: linear-gradient(hsl(0 0% 100% / .1) 1px, transparent 1px), linear-gradient(90deg, hsl(0 0% 100% / .1) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(90deg, black, transparent 85%);
+}
+.hero-copy { animation: dexta-rise-in .85s cubic-bezier(.2,.7,.2,1) both; }
+.hero-outline { color: transparent; -webkit-text-stroke: 1px hsl(0 0% 100% / .78); }
+.hero-bottom-line { background: linear-gradient(90deg, transparent, hsl(var(--destructive)), hsl(0 0% 100% / .45), transparent); }
+.hero-orbit-wrap { position: relative; min-height: 420px; transform-style: preserve-3d; animation: dexta-orbit-enter 1.1s cubic-bezier(.2,.7,.2,1) .15s both; }
+.hero-orbit { position: absolute; border: 1px solid hsl(0 0% 100% / .17); border-radius: 50%; transform-style: preserve-3d; }
+.orbit-one { width: 420px; height: 420px; top: 0; right: -10px; transform: rotateX(68deg) rotateZ(-24deg); animation: dexta-orbit-spin 32s linear infinite; }
+.orbit-two { width: 330px; height: 330px; top: 45px; right: 35px; transform: rotateX(68deg) rotateZ(35deg); border-color: hsl(var(--destructive) / .55); animation: dexta-orbit-spin 24s linear infinite reverse; }
+.hero-float-card { position: absolute; top: 112px; right: 24px; width: 285px; padding: 28px; border: 1px solid hsl(0 0% 100% / .22); background: linear-gradient(135deg, hsl(0 0% 8% / .9), hsl(0 0% 18% / .55)); box-shadow: 0 24px 80px hsl(0 0% 0% / .45), inset 0 1px hsl(0 0% 100% / .13); backdrop-filter: blur(16px); transform: translateZ(48px) rotateY(-7deg); animation: dexta-card-float 7s ease-in-out infinite; }
+.section-kicker { font-size: 10px; font-weight: 900; letter-spacing: .23em; color: hsl(var(--destructive)); }
+.vehicle-card, .service-card { isolation: isolate; animation: dexta-rise-in .65s cubic-bezier(.2,.7,.2,1) both; }
+.vehicle-image { filter: saturate(.72); }
+.vehicle-overlay { background: linear-gradient(0deg, hsl(0 0% 0% / .92), hsl(0 0% 0% / .08) 75%); }
+.vehicle-card { transform: translateZ(0); }
+.vehicle-card:hover { box-shadow: 0 24px 55px hsl(0 0% 0% / .22); }
+.service-card { transform: translateZ(0); }
+.service-card:focus-visible, .vehicle-card a:focus-visible, .dexta-site a:focus-visible, .dexta-site button:focus-visible { outline: 2px solid hsl(var(--destructive)); outline-offset: 4px; }
+.form-field { width: 100%; min-width: 0; border: 1px solid hsl(0 0% 0% / .14); background: white; padding: 14px 15px; color: hsl(0 0% 8%); font-size: 13px; outline: none; transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
+.form-field::placeholder { color: hsl(0 0% 0% / .42); }
+.form-field:focus { border-color: hsl(var(--destructive)); box-shadow: 0 0 0 3px hsl(var(--destructive) / .1); }
+.request-panel { box-shadow: 0 18px 60px hsl(0 0% 0% / .045); }
+.event-fields { border-top: 1px solid hsl(0 0% 0% / .1); padding-top: 24px; }
+@keyframes dexta-rise-in { from { opacity: 0; transform: translate3d(0, 18px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+@keyframes dexta-hero-drift { from { transform: scale(1.035) translate3d(0, 0, 0); } to { transform: scale(1.09) translate3d(-1.2%, 1%, 0); } }
+@keyframes dexta-orbit-enter { from { opacity: 0; transform: translate3d(0, 16px, -60px) rotateY(-9deg); } to { opacity: 1; transform: translate3d(0, 0, 0) rotateY(0); } }
+@keyframes dexta-orbit-spin { from { rotate: 0deg; } to { rotate: 360deg; } }
+@keyframes dexta-card-float { 0%, 100% { transform: translate3d(0, 0, 48px) rotateY(-7deg); } 50% { transform: translate3d(0, -10px, 48px) rotateY(-4deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .hero-image, .hero-copy, .hero-orbit-wrap, .hero-orbit, .hero-float-card, .vehicle-card, .service-card { animation: none !important; }
+  .dexta-site *, .dexta-site *::before, .dexta-site *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+@media (max-width: 640px) {
+  .hero-image { background-position: 61% center; opacity: .52; }
+  .hero-shade { background: linear-gradient(90deg, hsl(0 0% 0% / .88), hsl(0 0% 0% / .55)), linear-gradient(0deg, hsl(0 0% 0% / .7), transparent 60%); }
+}
