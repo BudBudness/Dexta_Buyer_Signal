@@ -38,7 +38,7 @@ export const bootstrap = mutation({
       throw new Error("This account is not authorized for Dexta operations")
     }
 
-    const name = args.name?.trim() || identity.name?.trim() || email.split("@")[0]
+    const name = args.name?.trim() || email.split("@")[0]
     await ctx.db.insert("staff", { email, name, role: "owner", active: true })
     return { role: "owner", name }
   },

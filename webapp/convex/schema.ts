@@ -43,9 +43,14 @@ export default defineSchema({
     candidates: v.number(), created: v.number(), updated: v.number(), status: v.string(), error: v.optional(v.string()),
   }).index("by_started", ["startedAt"]),
   clientRequests: defineTable({
-    reference: v.string(), name: v.string(), phone: v.string(), make: v.optional(v.string()), model: v.optional(v.string()),
-    yearRange: v.optional(v.string()), budget: v.optional(v.string()), location: v.optional(v.string()),
-    fuelTransmission: v.optional(v.string()), notes: v.optional(v.string()), status: v.string(),
+    reference: v.string(), name: v.string(), phone: v.string(), email: v.optional(v.string()),
+    contactPreference: v.optional(v.string()), serviceTypes: v.optional(v.array(v.string())),
+    make: v.optional(v.string()), model: v.optional(v.string()), yearRange: v.optional(v.string()),
+    budget: v.optional(v.string()), location: v.optional(v.string()), fuelTransmission: v.optional(v.string()),
+    vehicleCondition: v.optional(v.string()), vehicleUse: v.optional(v.string()),
+    eventType: v.optional(v.string()), eventDate: v.optional(v.string()), eventLocation: v.optional(v.string()),
+    hireDuration: v.optional(v.string()), driverPreference: v.optional(v.string()), vehicleClass: v.optional(v.string()),
+    vehicleCount: v.optional(v.string()), notes: v.optional(v.string()), status: v.string(),
     createdAt: v.number(), updatedAt: v.number(),
   }).index("by_reference", ["reference"]).index("by_status", ["status", "updatedAt"]),
   vehicles: defineTable({

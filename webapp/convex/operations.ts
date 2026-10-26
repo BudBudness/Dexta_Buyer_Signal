@@ -5,7 +5,16 @@ import { requireOwner } from "./authz"
 const owner = requireOwner
 
 export const requests = query({
-  args:{}, returns:v.array(v.object({_id:v.id("clientRequests"),_creationTime:v.number(),reference:v.string(),name:v.string(),phone:v.string(),make:v.optional(v.string()),model:v.optional(v.string()),yearRange:v.optional(v.string()),budget:v.optional(v.string()),location:v.optional(v.string()),fuelTransmission:v.optional(v.string()),notes:v.optional(v.string()),status:v.string(),createdAt:v.number(),updatedAt:v.number()})),
+  args:{}, returns:v.array(v.object({
+    _id:v.id("clientRequests"),_creationTime:v.number(),reference:v.string(),name:v.string(),phone:v.string(),
+    email:v.optional(v.string()),contactPreference:v.optional(v.string()),serviceTypes:v.optional(v.array(v.string())),
+    make:v.optional(v.string()),model:v.optional(v.string()),yearRange:v.optional(v.string()),budget:v.optional(v.string()),
+    location:v.optional(v.string()),fuelTransmission:v.optional(v.string()),vehicleCondition:v.optional(v.string()),
+    vehicleUse:v.optional(v.string()),eventType:v.optional(v.string()),eventDate:v.optional(v.string()),
+    eventLocation:v.optional(v.string()),hireDuration:v.optional(v.string()),driverPreference:v.optional(v.string()),
+    vehicleClass:v.optional(v.string()),vehicleCount:v.optional(v.string()),notes:v.optional(v.string()),
+    status:v.string(),createdAt:v.number(),updatedAt:v.number()
+  })),
   handler:async ctx=>{await owner(ctx);return await ctx.db.query("clientRequests").order("desc").take(100)}
 })
 export const vehicles = query({
@@ -25,7 +34,15 @@ export const documents = query({
   handler:async(ctx,args)=>{await owner(ctx);if(args.requestId)return await ctx.db.query("documents").withIndex("by_request",q=>q.eq("requestId",args.requestId!)).order("desc").take(100);return await ctx.db.query("documents").order("desc").take(100)}
 })
 export const updateRequestStatus = mutation({
-  args:{id:v.id("clientRequests"),status:v.string()},returns:v.null(),handler:async(ctx,args)=>{await owner(ctx);const r=await ctx.db.get(args.id);if(!r)throw new Error("Request not found");await ctx.db.patch(args.id,{status:args.status,updatedAt:Date.now()});return null}
+  args:{id:v.id("clientRequests"),status:v.string()},returns:v.null(),handler:async(ctx,args)=>{
+    await owner(ctx)
+    const allowed=["received","reviewing","needs_client_information","sourcing","options_found","quote_sent","acquisition_in_progress","completed","cancelled","new"]
+    if(!allowed.includes(args.status))throw new Error("Invalid request status")
+    const r=await ctx.db.get(args.id)
+    if(!r)throw new Error("Request not found")
+    await ctx.db.patch(args.id,{status:args.status,updatedAt:Date.now()})
+    return null
+  }
 })
 export const addVehicle = mutation({
   args:{requestId:v.optional(v.id("clientRequests")),make:v.string(),model:v.string(),year:v.number(),mileage:v.optional(v.number()),fuel:v.optional(v.string()),transmission:v.optional(v.string()),source:v.string(),sourceUrl:v.optional(v.string()),purchasePrice:v.number(),importCost:v.number(),transportCost:v.number(),expectedPrice:v.number(),currency:v.string(),notes:v.optional(v.string())},
