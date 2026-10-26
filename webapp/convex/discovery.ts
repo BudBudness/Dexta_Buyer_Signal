@@ -6,7 +6,10 @@ import "./authz"
 
 const MAKES=["Toyota","Honda","Mazda","Suzuki","Subaru","Nissan","Mitsubishi","Hyundai","Mercedes","BMW","Volkswagen","Ford","Isuzu","Lexus"]
 const MODELS=["Noah","Fielder","Vezel","Swift","Harrier","Alphard","Forester","CX-5","Fit","Premio","Wish","RAV4","Hiace","Prado","Hilux","Axio","Demio","Civic","CR-V","X-Trail"]
-const CITIES=["Kampala","Mbarara","Jinja","Wakiso","Entebbe","Mbale","Gulu","Fort Portal","Masaka","Kabale"]
+const CITIES=["Mbarara","Bushenyi","Ishaka","Kabale","Fort Portal","Kasese","Hoima","Rukungiri","Ntungamo","Ibanda","Kiruhura","Buhweju","Rubirizi","Kanungu","Kisoro","Masindi","Kyenjojo","Kyegegwa","Kampala","Jinja","Wakiso","Entebbe","Mbale","Gulu","Masaka"]
+const WESTERN_MARKERS=["western uganda","western region","ankole","kigezi","tooro","rwenzori","bunyoro"]
+const WESTERN_TOWNS=["Mbarara","Bushenyi","Ishaka","Kabale","Fort Portal","Kasese","Hoima","Rukungiri","Ntungamo","Ibanda","Kiruhura","Buhweju","Rubirizi","Kanungu","Kisoro","Masindi","Kyenjojo","Kyegegwa"]
+function westernRegion(text:string){return WESTERN_MARKERS.some(x=>text.toLowerCase().includes(x))||Boolean(firstMatch(text,WESTERN_TOWNS))?"Western Uganda":undefined}
 const BUYER_WORDS=["looking for","looking to buy","want to buy","need a","need an","buying","i want","i need","my budget","can anyone source","who can source","searching for"]
 const FUEL=["petrol","gasoline","diesel","hybrid","electric","ev"]
 const TRANS=["automatic","auto","manual","cvt"]
@@ -36,7 +39,7 @@ function extract(text:string,url:string,title:string,source:string){
  const direct=/\b(i|im|i'm|my|we|our)\b.{0,100}\b(buy|buying|need|want|looking|budget|source|import)\b/i.test(combined)
  const request=/\b(can anyone|who can|please|help me|searching for|looking for|looking to buy|want to buy|need (?:a|an))\b/i.test(combined)
  if(!direct&&!request)return null
- const city=firstMatch(combined,CITIES),b=budget(combined)
+ const city=firstMatch(combined,CITIES),region=westernRegion(combined),b=budget(combined)
  const years=[...combined.matchAll(/\b(?:19|20)\d{2}\b/g)].map(m=>Number(m[0])).filter(y=>y>=1990&&y<=2035)
  const yearMin=years.length?Math.min(...years):undefined,yearMax=years.length?Math.max(...years):undefined
  const mileageMax=numberNear(lower,[/(?:under|below|less than|max(?:imum)?|up to)\s*([0-9]{2,3}(?:[,.][0-9]{3})*)\s*(?:km|kms|mileage)/i,/([0-9]{2,3}(?:[,.][0-9]{3})*)\s*km\s*(?:or less|maximum|max)/i])
@@ -45,9 +48,9 @@ function extract(text:string,url:string,title:string,source:string){
  const urgency=/\b(urgent|urgently|asap|immediately|today|this week|this month)\b/i.test(combined)?"hot":BUYER_WORDS.filter(x=>lower.includes(x)).length>=2?"high":"medium"
  const requirements=[model,yearMin||yearMax,b.budgetMax,mileageMax,fuelType,transmission,drivetrain].filter(Boolean).length
  const intentStrength=Math.min(99,60+BUYER_WORDS.filter(x=>lower.includes(x)).length*7+requirements*5+(city?4:0)+(importRequired?5:0)+(urgency==="hot"?7:0))
- return {publicName:title||"Public buyer signal",source,sourceType:"public web",sourceUrl:url||"#",city,country:"Uganda",make,model,yearMin,yearMax,mileageMax,fuelType,transmission,drivetrain,...b,intentText:combined.slice(0,280),intentStrength,urgency,importRequired,evidenceText:combined.slice(0,900),sourceConfidence:.9}
+ return {publicName:title||"Public buyer signal",source,sourceType:"public web",sourceUrl:url||"#",city,region,country:"Uganda",make,model,yearMin,yearMax,mileageMax,fuelType,transmission,drivetrain,...b,intentText:combined.slice(0,280),intentStrength,urgency,importRequired,evidenceText:combined.slice(0,900),sourceConfidence:.9}
 }
-const SOURCES=[{name:"Public Web Search",kind:"internet-search",templates:['Uganda "I am looking for" car','Uganda "looking for" Toyota "budget"','Uganda "can anyone source" car'],notes:"Public web discovery only. Direct buyer language required."}]
+const SOURCES=[{name:"Mbarara & Western Uganda Public Web Search",kind:"internet-search",templates:['Mbarara "looking for" car buyer','Mbarara Toyota "my budget" OR "looking to buy"','Western Uganda "looking for" car','Ankole "can anyone source" car','Bushenyi OR Kabale OR Fort Portal OR Kasese "looking for" Toyota','Mbarara "need a" vehicle OR car'],notes:"Mbarara-first Western Uganda targeting. Public web discovery only; direct buyer language required."}]
 export const discover=action({
  args:{query:v.optional(v.string())},
  returns:v.object({searched:v.number(),candidates:v.number(),created:v.number(),updated:v.number()}),
@@ -56,7 +59,7 @@ export const discover=action({
   if(!identity) return {searched:0,candidates:0,created:0,updated:0}
   const isOwner=await ctx.runQuery(internal.authz.isOwner,{})
   if(!isOwner) return {searched:0,candidates:0,created:0,updated:0}
-  const base=args.query?.trim()||'Uganda "looking for" car buyer'
+  const base=args.query?.trim()||'Mbarara "looking for" car buyer'
   const queries=[base,...SOURCES[0].templates]
   let searched=0,candidates=0,created=0,updated=0
   for(const query of queries){
