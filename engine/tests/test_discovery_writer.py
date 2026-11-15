@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from dexta.discovery import write_source_records
 from dexta.models import SourceRecord
 
@@ -32,3 +34,14 @@ def test_write_source_records_outputs_one_parseable_json_object_per_line(tmp_pat
         "https://example.com/one",
         "https://example.com/two",
     ]
+
+
+def test_failed_serialization_preserves_existing_evidence(tmp_path):
+    output = tmp_path / "discovered_sources.jsonl"
+    output.write_text('{"existing": true}\n', encoding="utf-8")
+
+    with pytest.raises(TypeError):
+        write_source_records([object()], str(output))
+
+    assert output.read_text(encoding="utf-8") == '{"existing": true}\n'
+    assert list(tmp_path.iterdir()) == [output]
