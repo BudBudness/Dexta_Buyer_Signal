@@ -41,7 +41,7 @@ def test_authorized_private_pipeline():
 def test_qualified_output_replaces_existing_file_atomically(tmp_path):
     output = tmp_path / "nested" / "qualified.jsonl"
     output.parent.mkdir()
-    output.write_text('{"old": true}\\n', encoding="utf-8")
+    output.write_text('{"old": true}\n', encoding="utf-8")
 
     write_qualified_prospects(
         [{"is_buyer": True, "name": "new"}, {"is_buyer": False, "name": "not qualified"}],
@@ -55,7 +55,7 @@ def test_qualified_output_replaces_existing_file_atomically(tmp_path):
 
 def test_failed_serialization_preserves_previous_output(tmp_path):
     output = tmp_path / "qualified.jsonl"
-    original = '{"existing": true}\\n'
+    original = '{"existing": true}\n'
     output.write_text(original, encoding="utf-8")
 
     with pytest.raises(TypeError):
