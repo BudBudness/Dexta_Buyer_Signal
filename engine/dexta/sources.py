@@ -17,6 +17,7 @@ class SourceConfig:
     enabled: bool = True
     authorization_context: str | None = None
     permission_context: str | None = None
+    authorization_status: str = "unverified"
 
 
 def _html_to_text(html: str) -> str:
@@ -29,6 +30,9 @@ def _html_to_text(html: str) -> str:
 def fetch_public_source(config: SourceConfig, timeout: int = 20, max_bytes: int = 2_000_000) -> SourceRecord:
     if config.source_type != "public":
         raise ValueError("fetch_public_source only accepts public sources")
+    if (config.authorization_status != "approved" or
+            not config.authorization_context or not config.permission_context):
+        raise ValueError("public source requires approved authorization and permission context")
     req = urllib.request.Request(
         config.url,
         headers={"User-Agent": "DextaBuyerSignal/1.0 (+public-source-research)"},
@@ -44,4 +48,7 @@ def fetch_public_source(config: SourceConfig, timeout: int = 20, max_bytes: int 
         source_url=config.url,
         observed_at=int(time()),
         text=text,
+        authorization_context=config.authorization_context,
+        permission_context=config.permission_context,
+        authorization_status=config.authorization_status,
     )

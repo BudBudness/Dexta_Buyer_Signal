@@ -14,7 +14,7 @@ class SourceRecord:
     country: str = "Uganda"
     authorization_context: Optional[str] = None
     permission_context: Optional[str] = None
-    authorization_status: str = "not_required"
+    authorization_status: str = "unverified"
 
     def to_dict(self):
         return asdict(self)

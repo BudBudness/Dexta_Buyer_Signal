@@ -27,6 +27,7 @@ def test_authorized_private_pipeline():
         public_name="CRM Lead",
         authorization_context="Partner CRM export",
         permission_context="Contractual lead-sharing permission",
+        authorization_status="approved",
     )
     result = process_record(record)
     assert result["contacts"][0]["source"] == "authorized_private"

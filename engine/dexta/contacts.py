@@ -25,10 +25,21 @@ def _clean_phone(value: str) -> str:
         return "+256" + raw[1:]
     return raw
 
-def extract_contacts(text: str, source_url: str | None = None, *, authorization_context: str | None = None) -> list[Contact]:
+def extract_contacts(
+    text: str,
+    source_url: str | None = None,
+    *,
+    authorization_context: str | None = None,
+    permission_context: str | None = None,
+    authorization_status: str = "unverified",
+) -> list[Contact]:
     """Extract only explicitly supplied contacts; never infer hidden identity/contact data."""
     found, seen = [], set()
-    source = "authorized_private" if authorization_context else "public"
+    source = (
+        "authorized_private"
+        if authorization_status == "approved" and authorization_context and permission_context
+        else "public"
+    )
     for m in EMAIL.finditer(text):
         key=(m.group(0).lower(),"email")
         if key not in seen: seen.add(key); found.append(Contact(m.group(0),"email",source,"explicitly supplied",0.98))

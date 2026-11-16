@@ -24,7 +24,13 @@ def extract_vehicle_requirements(text: str) -> dict:
 
 def process_record(record: SourceRecord) -> dict:
     signal = classify(record.text)
-    contacts = extract_contacts(record.text, record.source_url, authorization_context=record.authorization_context)
+    contacts = extract_contacts(
+        record.text,
+        record.source_url,
+        authorization_context=record.authorization_context,
+        permission_context=record.permission_context,
+        authorization_status=record.authorization_status,
+    )
     vehicle = extract_vehicle_requirements(record.text)
     return {**asdict(record), "is_buyer": signal.is_buyer, "intent_strength": signal.score, "intent_type": signal.intent_type, "urgency": signal.urgency, "signal_reasons": list(signal.reasons), "contacts": [asdict(c) for c in contacts], "contactable": bool(contacts), "evidence_text": record.text, "vehicle_requirements": vehicle}
 
