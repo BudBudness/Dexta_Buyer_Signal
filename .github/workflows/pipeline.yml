@@ -1,13 +1,30 @@
 name: Dexta Buyer Pipeline
 
+# Automatic discovery stays disabled until an approved provider and private
+# evidence store are configured and verified.
 on:
-  schedule:
-    - cron: "17 * * * *"
   workflow_dispatch:
+    inputs:
+      confirm_authorized_sources:
+        description: "Confirm every enabled source has documented authorization and permission."
+        required: true
+        type: boolean
+        default: false
+      confirm_private_storage:
+        description: "Confirm private evidence storage and access controls are verified."
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: dexta-authorized-discovery
+  cancel-in-progress: false
 
 jobs:
   intelligence:
+    if: ${{ inputs.confirm_authorized_sources == true && inputs.confirm_private_storage == true }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       PYTHONPATH: ${{ github.workspace }}/engine
     permissions:
