@@ -5,6 +5,7 @@
     "url": "https://example.com/buyer-requests",
     "enabled": false,
     "authorization_context": null,
-    "permission_context": "publicly_accessible_web_page"
+    "permission_context": "publicly_accessible_web_page",
+    "authorization_status": "unverified"
   }
 ]
