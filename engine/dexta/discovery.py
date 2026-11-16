@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from tempfile import NamedTemporaryFile
 from dataclasses import asdict
 from pathlib import Path
 
@@ -29,6 +30,14 @@ def write_source_records(records: list[SourceRecord], path: str = "data/discover
     """Write one valid JSON object per line (JSONL)."""
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", encoding="utf-8", newline="\n") as f:
-        for record in records:
-            f.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
+    with NamedTemporaryFile(
+        mode="w", encoding="utf-8", newline="\n", dir=output.parent, delete=False
+    ) as staged:
+        temporary = Path(staged.name)
+        try:
+            for record in records:
+                staged.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
+            staged.close()
+            temporary.replace(output)
+        finally:
+            temporary.unlink(missing_ok=True)
