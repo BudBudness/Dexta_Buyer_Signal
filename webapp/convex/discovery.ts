@@ -55,6 +55,13 @@ export const discover=action({
  args:{query:v.optional(v.string())},
  returns:v.object({searched:v.number(),candidates:v.number(),created:v.number(),updated:v.number()}),
  handler:async(ctx,args)=>{
+  // Web UI actions must enforce the same source-authorization and private-storage gates as CI.
+  // These values are operator-managed deployment variables, not user-supplied request fields.
+  const sourceAuthorization = process.env.DEXTA_PUBLIC_SEARCH_AUTHORIZATION?.trim()
+  const privateStorageVerified = process.env.DEXTA_PRIVATE_STORAGE_VERIFIED?.trim() === "true"
+  if (!sourceAuthorization || !privateStorageVerified) {
+    return {searched:0,candidates:0,created:0,updated:0}
+  }
   const identity=await ctx.auth.getUserIdentity()
   if(!identity) return {searched:0,candidates:0,created:0,updated:0}
   const isOwner=await ctx.runQuery(internal.authz.isOwner,{})
